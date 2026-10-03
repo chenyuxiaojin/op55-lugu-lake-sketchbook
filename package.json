@@ -1,0 +1,14 @@
+{
+  "name": "op55-lugu-lake-sketchbook",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "preview": "node render.mjs --serve",
+    "render": "node render.mjs",
+    "qa": "node render.mjs --qa"
+  },
+  "dependencies": {
+    "lxgw-wenkai-webfont": "1.7.0",
+    "puppeteer-core": "25.12.0"
+  }
+}

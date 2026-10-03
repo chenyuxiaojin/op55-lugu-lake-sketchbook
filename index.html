@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OP55 预览</title>
+<link rel="stylesheet" href="node_modules/lxgw-wenkai-webfont/lxgwwenkai-regular.css">
+<link rel="stylesheet" href="node_modules/lxgw-wenkai-webfont/lxgwwenkai-bold.css">
+<style>
+  html, body { margin: 0; background: #05070a; color: #cfd6de; font: 14px/1.4 system-ui, sans-serif; }
+  canvas { display: block; width: 100vw; max-width: calc((100vh - 60px) * 3 / 4); margin: 0 auto; aspect-ratio: 3 / 4; height: auto; }
+  .bar { display: flex; gap: 12px; align-items: center; justify-content: center; padding: 8px; }
+  input[type=range] { width: 60vw; }
+  body.render .bar { display: none; }
+  body.render canvas { width: 1080px; max-width: none; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1080" height="1440"></canvas>
+<div class="bar"><button id="play">暂停</button><input id="seek" type="range" min="0" value="0"><span id="info"></span></div>
+<script type="module">
+import { parseSrt } from './src/srt.js';
+import { init, drawFrame, allText, FPS } from './src/scene.js';
+
+const params = new URLSearchParams(location.search);
+const renderMode = params.has('render');
+if (renderMode) document.body.classList.add('render');
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+const srt = await (await fetch('subtitles.srt', { cache: 'no-store' })).text();
+const { totalFrames } = init(parseSrt(srt));
+const text = allText();
+for (const w of [400, 700]) await document.fonts.load(`${w} 64px "LXGW WenKai"`, text);
+await document.fonts.ready;
+for (const w of [400, 700]) {
+  if (!document.fonts.check(`${w} 64px "LXGW WenKai"`, text)) throw new Error(`字体未就绪: ${w}`);
+}
+
+window.__info = { totalFrames, fps: FPS };
+window.__renderPNG = (frame, label) => {
+  drawFrame(ctx, frame);
+  if (label) {
+    ctx.fillStyle = 'rgba(0,0,0,0.75)';
+    ctx.fillRect(0, 0, 260, 64);
+    ctx.fillStyle = '#ffd400';
+    ctx.font = '700 40px "LXGW WenKai"';
+    ctx.fillText(`f${frame} ${(frame / FPS).toFixed(2)}s`, 14, 46);
+  }
+  return canvas.toDataURL('image/png').slice('data:image/png;base64,'.length);
+};
+window.__ready = true;
+
+if (!renderMode) {
+  // 浏览器预览:按墙钟时间换算帧号播放;导出不走这里
+  const seek = document.getElementById('seek');
+  const info = document.getElementById('info');
+  const btn = document.getElementById('play');
+  seek.max = totalFrames - 1;
+  let playing = true, frame = 0, t0 = performance.now();
+  btn.onclick = () => { playing = !playing; btn.textContent = playing ? '暂停' : '播放'; t0 = performance.now() - (frame / FPS) * 1000; };
+  seek.oninput = () => { frame = +seek.value; t0 = performance.now() - (frame / FPS) * 1000; drawFrame(ctx, frame); };
+  const tick = (now) => {
+    if (playing) { frame = Math.floor(((now - t0) / 1000) * FPS) % totalFrames; seek.value = frame; drawFrame(ctx, frame); }
+    info.textContent = `${frame} / ${totalFrames}`;
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+</script>
+</body>
+</html>

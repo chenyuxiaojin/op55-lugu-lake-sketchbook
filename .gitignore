@@ -1,0 +1,6 @@
+.op55/
+*.mp4
+/original.*
+node_modules/
+.DS_Store
+out/
